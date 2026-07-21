@@ -68,9 +68,6 @@ import com.example.ui.theme.BlueTurquoise
 import com.example.ui.theme.CitronYellow
 import com.example.ui.theme.DeepCurrent
 import com.example.ui.viewmodel.EisseryViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 data class CatalogItem(
     val id: String,
@@ -262,8 +259,8 @@ val premiumFoodsPool = listOf(
     )
 )
 
-fun getPremiumFoodForId(id: String, username: String?, dateStr: String): PremiumFood {
-    val seed = (username ?: "User").hashCode() + id.hashCode() + dateStr.hashCode()
+fun getPremiumFoodForId(id: String, username: String?): PremiumFood {
+    val seed = (username ?: "User").hashCode() + id.hashCode()
     val index = Math.abs(seed) % premiumFoodsPool.size
     return premiumFoodsPool[index]
 }
@@ -277,7 +274,6 @@ fun RewardsCatalogScreen(
 ) {
     val user by viewModel.user.collectAsState()
     val transactions by viewModel.transactions.collectAsState(initial = emptyList())
-    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
     var selectedReward by remember { mutableStateOf<CatalogItem?>(null) }
     var showSuccessDialog by remember { mutableStateOf(false) }
     var claimedItemName by remember { mutableStateOf("") }
@@ -457,18 +453,17 @@ fun RewardsCatalogScreen(
             items(rewards, key = { it.id }) { reward ->
                 val points = user?.totalPoints ?: 0
                 val canAfford = points >= reward.cost
-                val isUnlocked = remember(transactions, reward.id, reward.name, todayStr) {
+                val isUnlocked = remember(transactions, reward.id, reward.name) {
                     transactions.any { transaction ->
-                        val transactionDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(transaction.timestamp))
-                        transaction.isRedemption && transactionDate == todayStr && (
+                        transaction.isRedemption && (
                             transaction.productName.contains(reward.name, ignoreCase = true) ||
                             transaction.productCode.contains(reward.id, ignoreCase = true)
                         )
                     }
                 }
 
-                val premiumFood = remember(reward.id, user?.name, todayStr) {
-                    getPremiumFoodForId(reward.id, user?.name, todayStr)
+                val premiumFood = remember(reward.id, user?.name) {
+                    getPremiumFoodForId(reward.id, user?.name)
                 }
 
                 val displayEmoji = if (isUnlocked) premiumFood.emoji else "❓"
@@ -673,7 +668,7 @@ fun RewardsCatalogScreen(
                 Button(
                     onClick = {
                         viewModel.redeemRewardItem(reward.name, reward.cost) {
-                            val premiumFood = getPremiumFoodForId(reward.id, user?.name, todayStr)
+                            val premiumFood = getPremiumFoodForId(reward.id, user?.name)
                             claimedItemName = premiumFood.name
                             showSuccessDialog = true
                         }
